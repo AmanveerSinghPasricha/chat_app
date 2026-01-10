@@ -1,18 +1,8 @@
 import os
-from pathlib import Path
-from functools import lru_cache
 from dotenv import load_dotenv
 
-@lru_cache
-def load_env():
-    current = Path(__file__).resolve()
-    while current.name != "app":
-        if current.parent == current:
-            raise RuntimeError("Could not locate 'app' directory for .env")
-        current = current.parent
-    load_dotenv(current / ".env")
-
-load_env()
+# Load .env ONLY if it exists (local dev)
+load_dotenv(override=False)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
@@ -23,8 +13,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY is not set in .env")
+DB_ENABLED = os.getenv("DB_ENABLED", "true").lower() == "true"
 
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set in .env")
+
+# Fail fast ONLY for things that must exist everywhere
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is not set")
