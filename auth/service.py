@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
-from chat_app.app.user.model import User
-from chat_app.app.core.security import hash_password, verify_password, create_access_token
+from user.model import User
+from core.security import hash_password, verify_password, create_access_token
 
 def signup_user(db: Session, username: str, email: str, password: str):
     try:

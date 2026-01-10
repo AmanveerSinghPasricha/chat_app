@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
-from chat_app.app.core.response import ApiResponse
+from core.response import ApiResponse
 
 def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(

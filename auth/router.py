@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from chat_app.app.auth.schema import SignupRequest, LoginRequest, TokenResponse
-from chat_app.app.auth.service import signup_user, login_user
-from chat_app.app.core.database import SessionLocal
-from chat_app.app.core.utils import success_response
-from chat_app.app.core.response import ApiResponse
+from auth.schema import SignupRequest, LoginRequest, TokenResponse
+from auth.service import signup_user, login_user
+from core.database import SessionLocal
+from core.utils import success_response
+from core.response import ApiResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

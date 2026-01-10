@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
-from chat_app.app.core.deps import get_current_user
-from chat_app.app.core.utils import success_response
-from chat_app.app.user.model import User
+from core.deps import get_current_user
+from core.utils import success_response
+from user.model import User
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

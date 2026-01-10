@@ -1,9 +1,9 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from chat_app.app.core.database import SessionLocal
-from chat_app.app.core.security import decode_access_token
-from chat_app.app.user.model import User
+from core.database import SessionLocal
+from core.security import decode_access_token
+from user.model import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 

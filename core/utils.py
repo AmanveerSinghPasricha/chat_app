@@ -1,4 +1,4 @@
-from chat_app.app.core.response import ApiResponse
+from core.response import ApiResponse
 
 def success_response(*, data=None, message="Success", status_code=200):
     return ApiResponse(

@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from chat_app.app.core.database import Base
+from core.database import Base
 
 class User(Base):
     __tablename__ = "users"
