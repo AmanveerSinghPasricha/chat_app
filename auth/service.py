@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from user.model import User
 from core.security import hash_password, verify_password, create_access_token
+import traceback
 
 def signup_user(db: Session, username: str, email: str, password: str):
     try:
@@ -24,11 +25,19 @@ def signup_user(db: Session, username: str, email: str, password: str):
             detail="User already exists",
         )
 
-    except Exception:
-        db.rollback()
+    # except Exception:
+    #     db.rollback()
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail="Signup failed",
+    #     )
+    except Exception as e:
+        print("SIGNUP ERROR:", e)
+        traceback.print_exc()
+
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Signup failed",
+            status_code=500,
+            detail=str(e)  # TEMP: show real error
         )
 
 
