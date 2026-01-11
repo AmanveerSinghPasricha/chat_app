@@ -5,6 +5,7 @@ from core.exceptions import http_exception_handler
 from auth.router import router as auth_router
 from user.router import router as user_router
 from friend.router import router as friend_router
+from user.router import router as user_router
 
 app = FastAPI()
 
