@@ -17,18 +17,18 @@ def get_db():
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
-    token = credentials.credentials  # THIS extracts the JWT
+    token = credentials.credentials 
 
-    user_id = decode_access_token(token)
+    user_id = decode_access_token(token) 
 
-    db = SessionLocal()
-    user = db.query(User).filter(User.id == user_id).first()
-    db.close()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-
-    return user
+    db: Session = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+        return user
+    finally:
+        db.close()
