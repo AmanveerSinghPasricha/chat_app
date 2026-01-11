@@ -15,6 +15,8 @@ from friend.service import (
     get_pending_requests_for_receiver,
 )
 
+from core.response import ApiResponse
+
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
 @router.post("/request")
@@ -64,7 +66,10 @@ def reject_request(
 
     return success_response(message="Friend request rejected")
 
-@router.get("/requests", response_model=list[FriendRequestResponse])
+@router.get(
+    "/requests",
+    response_model=ApiResponse[list[FriendRequestResponse]],
+)
 def get_friend_requests(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),

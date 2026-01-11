@@ -15,6 +15,9 @@ class FriendRequestResponse(BaseModel):
     status: str
     created_at: datetime
 
+    class Config:
+        from_attributes = True
+
 class FriendResponse(BaseModel):
     id: UUID
     username: str
