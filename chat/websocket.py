@@ -15,18 +15,18 @@ async def chat_websocket(
 ):
     token = websocket.query_params.get("token")
 
-    # 1️⃣ Authenticate
+    # Authenticate
     user_id = authenticate_ws(token)
 
     db: Session = SessionLocal()
 
-    # 2️⃣ Authorize
+    # Authorize
     if not is_conversation_member(db, conversation_id, user_id):
         await websocket.close(code=1008)
         db.close()
         return
 
-    # 3️⃣ Connect
+    # Connect
     await manager.connect(conversation_id, websocket)
 
     try:
@@ -37,7 +37,7 @@ async def chat_websocket(
             if not content:
                 continue
 
-            # 4️⃣ Persist message
+            # Persist message
             message = Message(
                 conversation_id=conversation_id,
                 sender_id=user_id,
@@ -47,7 +47,7 @@ async def chat_websocket(
             db.commit()
             db.refresh(message)
 
-            # 5️⃣ Broadcast
+            # Broadcast
             await manager.broadcast(
                 conversation_id,
                 {
