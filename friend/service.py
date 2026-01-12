@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from friend.model import FriendRequest
+from user.model import User
+from sqlalchemy import or_
 
 def send_friend_request(db: Session, sender_id, receiver_id):
     if sender_id == receiver_id:
@@ -88,3 +90,26 @@ def get_pending_requests_for_receiver(db: Session, receiver_id):
         )
         .all()
     )
+
+def get_friends(db: Session, user_id):
+    friends = (
+        db.query(User)
+        .join(
+            FriendRequest,
+            or_(
+                (FriendRequest.sender_id == User.id),
+                (FriendRequest.receiver_id == User.id),
+            ),
+        )
+        .filter(
+            FriendRequest.status == "accepted",
+            User.id != user_id,
+            or_(
+                FriendRequest.sender_id == user_id,
+                FriendRequest.receiver_id == user_id,
+            ),
+        )
+        .all()
+    )
+
+    return friends

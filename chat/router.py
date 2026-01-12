@@ -4,7 +4,7 @@ from chat.websocket import chat_websocket
 from sqlalchemy.orm import Session
 from core.deps import get_db, get_current_user
 from core.utils import success_response
-from chat.service import get_or_create_conversation, are_friends
+from chat.service import get_or_create_conversation, are_friends, list_conversations, get_messages
 from user.model import User
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -38,3 +38,28 @@ async def chat_ws_endpoint(
     conversation_id: UUID,
 ):
     await chat_websocket(websocket, conversation_id)
+
+@router.get("/conversations")
+def get_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conversations = list_conversations(db, current_user.id)
+
+    return success_response(
+        data=conversations,
+        message="Conversations fetched",
+    )
+
+@router.get("/messages/{conversation_id}")
+def fetch_messages(
+    conversation_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    messages = get_messages(db, conversation_id)
+
+    return success_response(
+        data=messages,
+        message="Chat history fetched",
+    )

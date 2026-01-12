@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from core.deps import get_db, get_current_user
 from core.utils import success_response
+from friend.service import get_friends
 
 from friend.schema import (
     FriendRequestCreate,
@@ -82,4 +83,16 @@ def get_friend_requests(
     return success_response(
         data=requests,
         message="Pending friend requests fetched",
+    )
+
+@router.get("")
+def list_friends(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    friends = get_friends(db, current_user.id)
+
+    return success_response(
+        data=friends,
+        message="Friends list fetched",
     )

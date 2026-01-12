@@ -3,6 +3,16 @@ from uuid import UUID
 from chat.model import Conversation
 from friend.model import FriendRequest
 from sqlalchemy import or_
+from user.model import User
+from chat.model import Message
+
+def get_messages(db: Session, conversation_id: UUID):
+    return (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
 
 def are_friends(db: Session, user_a: UUID, user_b: UUID) -> bool:
     return (
@@ -17,7 +27,6 @@ def are_friends(db: Session, user_a: UUID, user_b: UUID) -> bool:
         .first()
         is not None
     )
-
 
 def get_or_create_conversation(
     db: Session,
@@ -45,3 +54,39 @@ def get_or_create_conversation(
     db.refresh(conversation)
 
     return conversation
+
+def get_friends(db: Session, user_id):
+    friends = (
+        db.query(User)
+        .join(
+            FriendRequest,
+            or_(
+                (FriendRequest.sender_id == User.id),
+                (FriendRequest.receiver_id == User.id),
+            ),
+        )
+        .filter(
+            FriendRequest.status == "accepted",
+            User.id != user_id,
+            or_(
+                FriendRequest.sender_id == user_id,
+                FriendRequest.receiver_id == user_id,
+            ),
+        )
+        .all()
+    )
+
+    return friends
+
+def list_conversations(db: Session, user_id: UUID):
+    return (
+        db.query(Conversation)
+        .filter(
+            or_(
+                Conversation.user1_id == user_id,
+                Conversation.user2_id == user_id,
+            )
+        )
+        .order_by(Conversation.updated_at.desc())
+        .all()
+    )
