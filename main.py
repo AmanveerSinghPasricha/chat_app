@@ -6,6 +6,7 @@ from auth.router import router as auth_router
 from user.router import router as user_router
 from friend.router import router as friend_router
 from user.router import router as user_router
+from chat.router import router as chat_router
 
 app = FastAPI()
 
@@ -18,3 +19,4 @@ def startup():
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(friend_router)
+app.include_router(chat_router)
