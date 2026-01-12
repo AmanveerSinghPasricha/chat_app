@@ -6,6 +6,10 @@ from core.deps import get_db, get_current_user
 from core.utils import success_response
 from chat.service import get_or_create_conversation, are_friends, list_conversations, get_messages
 from user.model import User
+from chat.schema import ConversationResponse
+from core.response import ApiResponse
+from chat.schema import MessageResponse
+from chat.model import Conversation
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -39,10 +43,13 @@ async def chat_ws_endpoint(
 ):
     await chat_websocket(websocket, conversation_id)
 
-@router.get("/conversations")
+@router.get(
+    "/chat/conversations",
+    response_model=ApiResponse[list[ConversationResponse]],
+)
 def get_conversations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     conversations = list_conversations(db, current_user.id)
 
@@ -51,12 +58,23 @@ def get_conversations(
         message="Conversations fetched",
     )
 
-@router.get("/messages/{conversation_id}")
+@router.get(
+    "/messages/{conversation_id}",
+    response_model=ApiResponse[list[MessageResponse]],
+)
 def fetch_messages(
     conversation_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    conversation = db.query(Conversation).get(conversation_id)
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    if current_user.id not in (conversation.user1_id, conversation.user2_id):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     messages = get_messages(db, conversation_id)
 
     return success_response(
