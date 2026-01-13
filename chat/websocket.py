@@ -6,6 +6,7 @@ from chat.model import Message
 from chat.ws_manager import ConnectionManager
 from chat.security import authenticate_ws
 from chat.permissions import is_conversation_member
+from starlette import status
 
 manager = ConnectionManager()
 
@@ -15,21 +16,27 @@ async def chat_websocket(
 ):
     token = websocket.query_params.get("token")
 
-    # Authenticate
-    user_id = authenticate_ws(token)
+    # ---- AUTHENTICATION (before accept) ----
+    try:
+        user_id = authenticate_ws(token)
+    except Exception:
+        # Reject handshake → HTTP 403 (EXPECTED)
+        return
+
+    # Accept ONLY after authentication passes
+    await websocket.accept()
 
     db: Session = SessionLocal()
 
-    # Authorize
-    if not is_conversation_member(db, conversation_id, user_id):
-        await websocket.close(code=1008)
-        db.close()
-        return
-
-    # Connect
-    await manager.connect(conversation_id, websocket)
-
     try:
+        # ---- AUTHORIZATION ----
+        if not is_conversation_member(db, conversation_id, user_id):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # ---- CONNECT ----
+        await manager.connect(conversation_id, websocket)
+
         while True:
             data = await websocket.receive_json()
             content = data.get("content")
@@ -37,7 +44,6 @@ async def chat_websocket(
             if not content:
                 continue
 
-            # Persist message
             message = Message(
                 conversation_id=conversation_id,
                 sender_id=user_id,
@@ -47,7 +53,6 @@ async def chat_websocket(
             db.commit()
             db.refresh(message)
 
-            # Broadcast
             await manager.broadcast(
                 conversation_id,
                 {
