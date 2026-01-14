@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
 from auth.schema import SignupRequest, LoginRequest, TokenResponse
 from auth.service import signup_user, login_user
 from core.database import SessionLocal
 from core.utils import success_response
 from core.response import ApiResponse
+from core.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -30,7 +30,6 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)):
         status_code=201,
     )
 
-
 @router.post(
     "/login",
     response_model=ApiResponse[TokenResponse],
@@ -42,3 +41,14 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         data=TokenResponse(access_token=token),
         message="Login successful",
     )
+
+@router.post("/logout")
+def logout(current_user=Depends(get_current_user)):
+    """
+    Logout endpoint.
+    Client must delete JWT and close WebSocket.
+    """
+    return success_response(
+        message="Logged out successfully"
+    )
+

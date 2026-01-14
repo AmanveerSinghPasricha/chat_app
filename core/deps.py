@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.security import decode_access_token
 from user.model import User
+from uuid import UUID
 
 security = HTTPBearer()
 
@@ -19,16 +20,26 @@ def get_current_user(
 ):
     token = credentials.credentials 
 
-    user_id = decode_access_token(token) 
+    try:
+        user_id: UUID = decode_access_token(token)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
 
     db: Session = SessionLocal()
+
     try:
         user = db.query(User).filter(User.id == user_id).first()
-        if not user:
+
+        if not user or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
+                detail="Account inactive or deleted",
             )
+
         return user
+    
     finally:
         db.close()
