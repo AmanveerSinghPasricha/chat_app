@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import HTTPException
 from core.database import engine, Base
 from core.exceptions import http_exception_handler
+from core.cors import setup_cors
 from auth.router import router as auth_router
 from user.router import router as user_router
 from friend.router import router as friend_router
@@ -11,6 +12,8 @@ from chat.router import router as chat_router
 app = FastAPI()
 
 app.add_exception_handler(HTTPException, http_exception_handler)
+
+setup_cors(app)
 
 @app.on_event("startup")
 def startup():
