@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from friend.model import FriendRequest
 from user.model import User
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 def send_friend_request(db: Session, sender_id, receiver_id):
     if sender_id == receiver_id:
@@ -113,3 +114,14 @@ def get_friends(db: Session, user_id):
     )
 
     return friends
+
+def get_pending_requests_for_receiver(db: Session, receiver_id):
+    return (
+        db.query(FriendRequest)
+        .options(joinedload(FriendRequest.sender))  # ✅ LOAD sender details
+        .filter(
+            FriendRequest.receiver_id == receiver_id,
+            FriendRequest.status == "pending",
+        )
+        .all()
+    )
