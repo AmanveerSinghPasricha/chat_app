@@ -90,3 +90,11 @@ def list_conversations(db: Session, user_id: UUID):
         .order_by(Conversation.updated_at.desc())
         .all()
     )
+
+def get_messages(db: Session, conversation_id: UUID):
+    return (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )

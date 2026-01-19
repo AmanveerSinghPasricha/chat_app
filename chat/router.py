@@ -10,6 +10,16 @@ from chat.schema import ConversationResponse
 from core.response import ApiResponse
 from chat.schema import MessageResponse
 from chat.model import Conversation
+from user.model import User
+from chat.websocket import chat_websocket
+from chat.service import get_messages
+from chat.schema import EncryptedMessageOut
+from fastapi import APIRouter, Depends, WebSocket
+from sqlalchemy.orm import Session
+from uuid import UUID
+from core.deps import get_db, get_current_user
+from core.utils import success_response
+from core.response import ApiResponse
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -36,11 +46,15 @@ def start_conversation(
         message="Conversation ready",
     )
 
+# @router.websocket("/ws/{conversation_id}")
+# async def chat_ws_endpoint(
+#     websocket: WebSocket,
+#     conversation_id: UUID,
+# ):
+#     await chat_websocket(websocket, conversation_id)
+
 @router.websocket("/ws/{conversation_id}")
-async def chat_ws_endpoint(
-    websocket: WebSocket,
-    conversation_id: UUID,
-):
+async def chat_ws_endpoint(websocket: WebSocket, conversation_id: UUID):
     await chat_websocket(websocket, conversation_id)
 
 @router.get(
@@ -58,26 +72,43 @@ def get_conversations(
         message="Conversations fetched",
     )
 
+# @router.get(
+#     "/messages/{conversation_id}",
+#     response_model=ApiResponse[list[MessageResponse]],
+# )
+# def fetch_messages(
+#     conversation_id: UUID,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     conversation = db.query(Conversation).get(conversation_id)
+
+#     if not conversation:
+#         raise HTTPException(status_code=404, detail="Conversation not found")
+
+#     if current_user.id not in (conversation.user1_id, conversation.user2_id):
+#         raise HTTPException(status_code=403, detail="Not authorized")
+
+#     messages = get_messages(db, conversation_id)
+
+#     return success_response(
+#         data=messages,
+#         message="Chat history fetched",
+#     )
+
 @router.get(
     "/messages/{conversation_id}",
-    response_model=ApiResponse[list[MessageResponse]],
+    response_model=ApiResponse[list[EncryptedMessageOut]],
 )
 def fetch_messages(
     conversation_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    conversation = db.query(Conversation).get(conversation_id)
-
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
-    if current_user.id not in (conversation.user1_id, conversation.user2_id):
-        raise HTTPException(status_code=403, detail="Not authorized")
-
+    # current_user is used for auth guard
     messages = get_messages(db, conversation_id)
 
     return success_response(
         data=messages,
-        message="Chat history fetched",
+        message="Encrypted chat history fetched",
     )

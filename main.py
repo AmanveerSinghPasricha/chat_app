@@ -8,6 +8,7 @@ from user.router import router as user_router
 from friend.router import router as friend_router
 from user.router import router as user_router
 from chat.router import router as chat_router
+from e2ee.router import router as e2ee_router
 
 app = FastAPI()
 
@@ -23,3 +24,4 @@ app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(friend_router)
 app.include_router(chat_router)
+app.include_router(e2ee_router)
