@@ -1,5 +1,14 @@
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, String, UniqueConstraint, Integer, Text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    Integer,
+    Text,
+    Index,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from core.database import Base
@@ -52,6 +61,11 @@ class Message(Base):
 
     message_type = Column(String, default="text")
 
+    # ✅ used to prevent duplicate messages in UI
     client_msg_id = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# optional index for faster dedupe
+Index("ix_messages_client_msg_id", Message.client_msg_id)

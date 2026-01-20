@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
+from typing import Optional
+
 
 class ConversationResponse(BaseModel):
     id: UUID
@@ -12,26 +14,12 @@ class ConversationResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class MessageResponse(BaseModel):
-    id: UUID
-    conversation_id: UUID
-    sender_id: UUID
-    content: str
-    message_type: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-from pydantic import BaseModel
-from uuid import UUID
-from datetime import datetime
-from typing import Optional
 
 class E2EEHeader(BaseModel):
     ephemeral_pub: Optional[str] = None
     signed_prekey_id: Optional[int] = None
     one_time_prekey_id: Optional[int] = None
+
 
 class EncryptedMessageIn(BaseModel):
     ciphertext: str
@@ -40,6 +28,8 @@ class EncryptedMessageIn(BaseModel):
     receiver_device_id: UUID
     header: Optional[E2EEHeader] = None
     message_type: str = "text"
+    client_msg_id: Optional[str] = None
+
 
 class EncryptedMessageOut(BaseModel):
     id: UUID
@@ -48,6 +38,7 @@ class EncryptedMessageOut(BaseModel):
 
     ciphertext: str
     nonce: str
+
     sender_device_id: UUID
     receiver_device_id: UUID
 
@@ -56,26 +47,9 @@ class EncryptedMessageOut(BaseModel):
     one_time_prekey_id: Optional[int] = None
 
     message_type: str
-    
-    class EncryptedMessageOut(BaseModel):
-        id: UUID
-        conversation_id: UUID
-        sender_id: UUID
+    client_msg_id: Optional[str] = None
 
-        ciphertext: str
-        nonce: str
+    created_at: datetime
 
-        sender_device_id: UUID
-        receiver_device_id: UUID
-
-        ephemeral_pub: str | None = None
-        signed_prekey_id: int | None = None
-        one_time_prekey_id: int | None = None
-
-        message_type: str
-        client_msg_id: str | None = None  # ✅ ADD THIS
-
-        created_at: datetime
-
-        class Config:
-            from_attributes = True
+    class Config:
+        from_attributes = True
