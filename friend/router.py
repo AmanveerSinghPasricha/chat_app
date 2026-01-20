@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
 from core.deps import get_db, get_current_user
 from core.utils import success_response
 from friend.service import get_friends
-
 from friend.schema import (
     FriendRequestCreate,
     FriendRequestAction,
@@ -15,7 +13,6 @@ from friend.service import (
     respond_to_request,
     get_pending_requests_for_receiver,
 )
-
 from core.response import ApiResponse
 from friend.schema import FriendResponse
 
