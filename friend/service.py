@@ -7,6 +7,9 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, and_
 
+# -----------------------------
+# SEND FRIEND REQUEST
+# -----------------------------
 def send_friend_request(db: Session, sender_id, receiver_id):
     if sender_id == receiver_id:
         raise HTTPException(
@@ -117,23 +120,25 @@ def respond_to_request(db: Session, request_id, user_id, action: str):
 #     return friends
 
 def get_friends(db: Session, user_id):
+    # This returns only accepted friends (correct logic)
     friends = (
         db.query(User)
         .join(
             FriendRequest,
-            and_(
-                FriendRequest.status == "accepted",
-                or_(
-                    and_(
-                        FriendRequest.sender_id == user_id,
-                        FriendRequest.receiver_id == User.id,
-                    ),
-                    and_(
-                        FriendRequest.receiver_id == user_id,
-                        FriendRequest.sender_id == User.id,
-                    ),
+            or_(
+                and_(
+                    FriendRequest.sender_id == user_id,
+                    FriendRequest.receiver_id == User.id,
+                ),
+                and_(
+                    FriendRequest.receiver_id == user_id,
+                    FriendRequest.sender_id == User.id,
                 ),
             ),
+        )
+        .filter(
+            FriendRequest.status == "accepted",
+            User.id != user_id,
         )
         .all()
     )
