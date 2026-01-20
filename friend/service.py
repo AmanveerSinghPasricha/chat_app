@@ -1,15 +1,32 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_, and_
+from uuid import UUID
 from friend.model import FriendRequest
 from user.model import User
-from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
-from sqlalchemy import or_, and_
 
-# -----------------------------
-# SEND FRIEND REQUEST
-# -----------------------------
+def are_friends(db: Session, user_a: UUID, user_b: UUID) -> bool:
+    fr = (
+        db.query(FriendRequest)
+        .filter(
+            FriendRequest.status == "accepted",
+            or_(
+                and_(
+                    FriendRequest.sender_id == user_a,
+                    FriendRequest.receiver_id == user_b,
+                ),
+                and_(
+                    FriendRequest.sender_id == user_b,
+                    FriendRequest.receiver_id == user_a,
+                ),
+            ),
+        )
+        .first()
+    )
+    return fr is not None
+
+
 def send_friend_request(db: Session, sender_id, receiver_id):
     if sender_id == receiver_id:
         raise HTTPException(
@@ -50,6 +67,7 @@ def send_friend_request(db: Session, sender_id, receiver_id):
             detail="Invalid receiver",
         )
 
+
 def respond_to_request(db: Session, request_id, user_id, action: str):
     friend_request = (
         db.query(FriendRequest)
@@ -86,41 +104,8 @@ def respond_to_request(db: Session, request_id, user_id, action: str):
     db.refresh(friend_request)
     return friend_request
 
-# def get_pending_requests_for_receiver(db: Session, receiver_id):
-#     return (
-#         db.query(FriendRequest)
-#         .filter(
-#             FriendRequest.receiver_id == receiver_id,
-#             FriendRequest.status == "pending",
-#         )
-#         .all()
-#     )
-
-# def get_friends(db: Session, user_id):
-#     friends = (
-#         db.query(User)
-#         .join(
-#             FriendRequest,
-#             or_(
-#                 (FriendRequest.sender_id == User.id),
-#                 (FriendRequest.receiver_id == User.id),
-#             ),
-#         )
-#         .filter(
-#             FriendRequest.status == "accepted",
-#             User.id != user_id,
-#             or_(
-#                 FriendRequest.sender_id == user_id,
-#                 FriendRequest.receiver_id == user_id,
-#             ),
-#         )
-#         .all()
-#     )
-
-#     return friends
 
 def get_friends(db: Session, user_id):
-    # This returns only accepted friends (correct logic)
     friends = (
         db.query(User)
         .join(
@@ -145,10 +130,11 @@ def get_friends(db: Session, user_id):
 
     return friends
 
+
 def get_pending_requests_for_receiver(db: Session, receiver_id):
     return (
         db.query(FriendRequest)
-        .options(joinedload(FriendRequest.sender))  # ✅ LOAD sender details
+        .options(joinedload(FriendRequest.sender))
         .filter(
             FriendRequest.receiver_id == receiver_id,
             FriendRequest.status == "pending",
