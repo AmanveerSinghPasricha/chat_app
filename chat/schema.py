@@ -56,7 +56,26 @@ class EncryptedMessageOut(BaseModel):
     one_time_prekey_id: Optional[int] = None
 
     message_type: str
-    created_at: datetime
+    
+    class EncryptedMessageOut(BaseModel):
+        id: UUID
+        conversation_id: UUID
+        sender_id: UUID
 
-    class Config:
-        from_attributes = True
+        ciphertext: str
+        nonce: str
+
+        sender_device_id: UUID
+        receiver_device_id: UUID
+
+        ephemeral_pub: str | None = None
+        signed_prekey_id: int | None = None
+        one_time_prekey_id: int | None = None
+
+        message_type: str
+        client_msg_id: str | None = None  # ✅ ADD THIS
+
+        created_at: datetime
+
+        class Config:
+            from_attributes = True

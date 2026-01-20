@@ -17,15 +17,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
     try:
         user_id = authenticate_ws(token)
     except Exception:
-        # Reject handshake -> 403
         return
 
     await websocket.accept()
-
     db: Session = SessionLocal()
 
     try:
-        # ---- AUTHORIZE ----
         if not is_conversation_member(db, conversation_id, user_id):
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
@@ -43,6 +40,9 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
 
             header = data.get("header") or {}
 
+            # ✅ NEW
+            client_msg_id = data.get("client_msg_id")
+
             if not ciphertext or not nonce or not sender_device_id or not receiver_device_id:
                 continue
 
@@ -57,6 +57,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 signed_prekey_id=header.get("signed_prekey_id"),
                 one_time_prekey_id=header.get("one_time_prekey_id"),
                 message_type=message_type,
+                client_msg_id=client_msg_id,  # ✅ store it
             )
 
             db.add(msg)
@@ -67,6 +68,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 conversation_id,
                 {
                     "id": str(msg.id),
+                    "client_msg_id": msg.client_msg_id,  # ✅ broadcast it
                     "conversation_id": str(conversation_id),
                     "sender_id": str(user_id),
                     "ciphertext": msg.ciphertext,
