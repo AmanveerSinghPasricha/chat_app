@@ -10,6 +10,16 @@ from chat.permissions import is_conversation_member
 
 manager = ConnectionManager()
 
+
+def safe_uuid(val):
+    try:
+        if not val:
+            return None
+        return UUID(str(val))
+    except Exception:
+        return None
+
+
 async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
     token = websocket.query_params.get("token")
 
@@ -34,17 +44,23 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
 
             ciphertext = data.get("ciphertext")
             nonce = data.get("nonce")
-            sender_device_id = data.get("sender_device_id")
-            receiver_device_id = data.get("receiver_device_id")
-            message_type = data.get("message_type", "text")
 
+            sender_device_id = safe_uuid(data.get("sender_device_id"))
+            receiver_device_id = safe_uuid(data.get("receiver_device_id"))
+
+            message_type = data.get("message_type", "text")
             header = data.get("header") or {}
 
-            # ✅ NEW
             client_msg_id = data.get("client_msg_id")
 
+            # Validate required fields
             if not ciphertext or not nonce or not sender_device_id or not receiver_device_id:
                 continue
+
+            # Header fields (optional)
+            ephemeral_pub = header.get("ephemeral_pub")
+            signed_prekey_id = header.get("signed_prekey_id")
+            one_time_prekey_id = header.get("one_time_prekey_id")
 
             msg = Message(
                 conversation_id=conversation_id,
@@ -53,11 +69,11 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 nonce=nonce,
                 sender_device_id=sender_device_id,
                 receiver_device_id=receiver_device_id,
-                ephemeral_pub=header.get("ephemeral_pub"),
-                signed_prekey_id=header.get("signed_prekey_id"),
-                one_time_prekey_id=header.get("one_time_prekey_id"),
+                ephemeral_pub=ephemeral_pub,
+                signed_prekey_id=signed_prekey_id,
+                one_time_prekey_id=one_time_prekey_id,
                 message_type=message_type,
-                client_msg_id=client_msg_id,  # ✅ store it
+                client_msg_id=client_msg_id,
             )
 
             db.add(msg)
@@ -68,7 +84,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 conversation_id,
                 {
                     "id": str(msg.id),
-                    "client_msg_id": msg.client_msg_id,  # ✅ broadcast it
+                    "client_msg_id": msg.client_msg_id,
                     "conversation_id": str(conversation_id),
                     "sender_id": str(user_id),
                     "ciphertext": msg.ciphertext,

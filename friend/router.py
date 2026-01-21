@@ -15,6 +15,9 @@ from friend.service import (
 )
 from core.response import ApiResponse
 from friend.schema import FriendResponse
+from user.model import User
+from friend.schema import FriendResponse
+from friend.service import get_friends
 
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
@@ -83,13 +86,10 @@ def get_friend_requests(
         message="Pending friend requests fetched",
     )
 
-@router.get(
-    "",
-    response_model=ApiResponse[list[FriendResponse]],
-)
+@router.get("", response_model=ApiResponse[list[FriendResponse]])
 def list_friends(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     friends = get_friends(db, current_user.id)
 

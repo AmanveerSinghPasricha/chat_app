@@ -1,10 +1,13 @@
-from sqlalchemy.orm import Session, joinedload
+# friend/service.py
+from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, and_
 from uuid import UUID
+
 from friend.model import FriendRequest
 from user.model import User
+
 
 def are_friends(db: Session, user_a: UUID, user_b: UUID) -> bool:
     fr = (
@@ -105,7 +108,8 @@ def respond_to_request(db: Session, request_id, user_id, action: str):
     return friend_request
 
 
-def get_friends(db: Session, user_id):
+def get_friends(db: Session, user_id: UUID):
+    # ✅ return the OTHER USER, not yourself
     friends = (
         db.query(User)
         .join(
@@ -123,7 +127,7 @@ def get_friends(db: Session, user_id):
         )
         .filter(
             FriendRequest.status == "accepted",
-            User.id != user_id,
+            User.id != user_id,  # ✅ IMPORTANT
         )
         .all()
     )
@@ -134,7 +138,6 @@ def get_friends(db: Session, user_id):
 def get_pending_requests_for_receiver(db: Session, receiver_id):
     return (
         db.query(FriendRequest)
-        .options(joinedload(FriendRequest.sender))
         .filter(
             FriendRequest.receiver_id == receiver_id,
             FriendRequest.status == "pending",
