@@ -2,6 +2,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from uuid import UUID
 from sqlalchemy.orm import Session
 from starlette import status
+
 from core.database import SessionLocal
 from chat.model import Message
 from chat.ws_manager import ConnectionManager
@@ -10,15 +11,11 @@ from chat.permissions import is_conversation_member
 
 manager = ConnectionManager()
 
-
-def safe_uuid(val):
-    try:
-        if not val:
-            return None
-        return UUID(str(val))
-    except Exception:
+def _clean_str(x):
+    if x is None:
         return None
-
+    x = str(x).strip()
+    return x if x else None
 
 async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
     token = websocket.query_params.get("token")
@@ -44,23 +41,18 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
 
             ciphertext = data.get("ciphertext")
             nonce = data.get("nonce")
-
-            sender_device_id = safe_uuid(data.get("sender_device_id"))
-            receiver_device_id = safe_uuid(data.get("receiver_device_id"))
-
+            sender_device_id = data.get("sender_device_id")
+            receiver_device_id = data.get("receiver_device_id")
             message_type = data.get("message_type", "text")
-            header = data.get("header") or {}
 
+            header = data.get("header") or {}
             client_msg_id = data.get("client_msg_id")
 
-            # Validate required fields
             if not ciphertext or not nonce or not sender_device_id or not receiver_device_id:
                 continue
 
-            # Header fields (optional)
-            ephemeral_pub = header.get("ephemeral_pub")
-            signed_prekey_id = header.get("signed_prekey_id")
-            one_time_prekey_id = header.get("one_time_prekey_id")
+            # IMPORTANT: never store empty string
+            ephemeral_pub = _clean_str(header.get("ephemeral_pub"))
 
             msg = Message(
                 conversation_id=conversation_id,
@@ -70,8 +62,8 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 sender_device_id=sender_device_id,
                 receiver_device_id=receiver_device_id,
                 ephemeral_pub=ephemeral_pub,
-                signed_prekey_id=signed_prekey_id,
-                one_time_prekey_id=one_time_prekey_id,
+                signed_prekey_id=header.get("signed_prekey_id"),
+                one_time_prekey_id=header.get("one_time_prekey_id"),
                 message_type=message_type,
                 client_msg_id=client_msg_id,
             )
