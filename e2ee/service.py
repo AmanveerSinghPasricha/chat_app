@@ -2,8 +2,10 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import or_
+
 from e2ee.model import Device, SignedPreKey, OneTimePreKey
 from friend.model import FriendRequest
+
 
 # -----------------------------
 # FRIEND CHECK
@@ -24,8 +26,10 @@ def are_friends(db: Session, user_a: UUID, user_b: UUID) -> bool:
         is not None
     )
 
+
 # -----------------------------
-# DEVICE REGISTER
+# DEVICE REGISTER (FIXED: UPSERT)
+# 1 user + 1 device_name = 1 device
 # -----------------------------
 def register_device(
     db: Session,
@@ -33,6 +37,23 @@ def register_device(
     device_name: str | None,
     identity_key_pub: str,
 ) -> Device:
+    device_name = device_name or "web"
+
+    existing = (
+        db.query(Device)
+        .filter(Device.user_id == user_id, Device.device_name == device_name)
+        .first()
+    )
+
+    # If device already exists -> UPDATE instead of creating new row
+    if existing:
+        # update identity pub key (in case user cleared local storage and generated new keys)
+        existing.identity_key_pub = identity_key_pub
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    # else create new device
     device = Device(
         user_id=user_id,
         device_name=device_name,
@@ -42,6 +63,7 @@ def register_device(
     db.commit()
     db.refresh(device)
     return device
+
 
 # -----------------------------
 # UPLOAD PREKEYS
@@ -73,6 +95,13 @@ def upload_prekeys(
         is_active=True,
     )
     db.add(spk)
+
+    # OPTIONAL BUT RECOMMENDED:
+    # clear unused old one-time prekeys to prevent DB growing forever
+    db.query(OneTimePreKey).filter(
+        OneTimePreKey.device_id == device_id,
+        OneTimePreKey.is_used == False,
+    ).delete(synchronize_session=False)
 
     # Insert one-time prekeys
     for pk in one_time_prekeys:
