@@ -3,7 +3,6 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from starlette import status
 
-from core.database import SessionLocal
 from chat.model import Message
 from chat.ws_manager import ConnectionManager
 from chat.security import authenticate_ws
@@ -17,11 +16,13 @@ def _clean_str(x):
     x = str(x).strip()
     return x if x else None
 
+
 def _clean_int(x):
     try:
         return int(x)
     except Exception:
         return None
+
 
 def _is_valid_uuid(x):
     try:
@@ -30,22 +31,36 @@ def _is_valid_uuid(x):
     except Exception:
         return False
 
-async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
-    db: Session = SessionLocal()
+async def chat_websocket(
+    websocket: WebSocket,
+    conversation_id: UUID,
+    db: Session,
+):
+
+    connected = False
 
     try:
+        # Accept WebSocket connection
+        await websocket.accept()
+
+        # Authenticate user
         user_id = await authenticate_ws(websocket)
+
         if not user_id:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
+        # Check conversation membership
         if not is_conversation_member(db, conversation_id, user_id):
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
+        # Register connection
         await manager.connect(conversation_id, websocket)
+        connected = True
 
         while True:
+
             data = await websocket.receive_json()
 
             ciphertext = _clean_str(data.get("ciphertext"))
@@ -56,11 +71,11 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
             header = data.get("header") or {}
             client_msg_id = _clean_str(data.get("client_msg_id"))
 
+            # Basic validation
             if not ciphertext or not nonce:
                 continue
 
-            # Never log ciphertext or plaintext
-            # Enforce replay protection server-side by client_msg_id uniqueness per conversation
+            # Prevent duplicate messages
             if client_msg_id:
                 existing = (
                     db.query(Message)
@@ -73,12 +88,13 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 if existing:
                     continue
 
-            # Validate device IDs (must be UUID)
+            # Validate device ids
             if not _is_valid_uuid(sender_device_id) or not _is_valid_uuid(receiver_device_id):
                 continue
 
             ephemeral_pub = _clean_str(header.get("ephemeral_pub"))
 
+            # Store encrypted message
             msg = Message(
                 conversation_id=conversation_id,
                 sender_id=user_id,
@@ -97,10 +113,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
             db.commit()
             db.refresh(msg)
 
+            # Broadcast message to conversation participants
             await manager.broadcast(conversation_id, msg.to_dict())
 
-    except WebSocketDisconnect:
-        pass
+    except Exception as e:
+        print("WEBSOCKET ERROR:", e)
+
     finally:
-        manager.disconnect(conversation_id, websocket)
-        db.close()
+        if connected:
+            manager.disconnect(conversation_id, websocket)

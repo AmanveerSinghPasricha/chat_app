@@ -33,12 +33,19 @@ from e2ee.model import Device, SignedPreKey, OneTimePreKey
 from friend.model import FriendRequest
 from user.model import User
 
-
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_e2ee.db"
-engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+)
 
+TestingSessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
 
 @pytest.fixture(scope="function")
 def db():

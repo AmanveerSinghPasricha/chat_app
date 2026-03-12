@@ -10,11 +10,10 @@ from user.model import User
 from chat.websocket import chat_websocket
 from chat.service import get_or_create_conversation, list_conversations, get_messages
 from chat.schema import ConversationResponse, EncryptedMessageOut
-
-# ✅ IMPORTANT: use friend check from friend.service (single source of truth)
 from friend.service import are_friends
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+
 
 # -----------------------------
 # START / GET CONVERSATION
@@ -26,11 +25,6 @@ def start_conversation(
     current_user: User = Depends(get_current_user),
 ):
 
-    # if friend_id == current_user.id:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail="Cannot start conversation with yourself",
-    #     )
     if str(friend_id) == str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -55,12 +49,16 @@ def start_conversation(
     )
 
 
-# -----------------------------
-# WEBSOCKET
-# -----------------------------
+from core.deps import get_db
+from sqlalchemy.orm import Session
+
 @router.websocket("/ws/{conversation_id}")
-async def chat_ws_endpoint(websocket: WebSocket, conversation_id: UUID):
-    await chat_websocket(websocket, conversation_id)
+async def chat_ws_endpoint(
+    websocket: WebSocket,
+    conversation_id: UUID,
+    db: Session = Depends(get_db),
+):
+    await chat_websocket(websocket, conversation_id, db)
 
 
 # -----------------------------
@@ -85,21 +83,6 @@ def get_conversations(
 # -----------------------------
 # FETCH ENCRYPTED MESSAGES
 # -----------------------------
-# @router.get(
-#     "/messages/{conversation_id}",
-#     response_model=ApiResponse[list[EncryptedMessageOut]],
-# )
-# def fetch_messages(
-#     conversation_id: UUID,
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user),
-# ):
-#     messages = get_messages(db, conversation_id)
-
-#     return success_response(
-#         data=messages,
-#         message="Encrypted chat history fetched",
-#     )
 @router.get(
     "/messages/{conversation_id}",
     response_model=ApiResponse[list[EncryptedMessageOut]],
@@ -122,7 +105,7 @@ def fetch_messages(
                 nonce=m.nonce,
                 sender_device_id=m.sender_device_id,
                 receiver_device_id=m.receiver_device_id,
-                ephemeral_pub=m.ephemeral_pub,  # ✅ critical
+                ephemeral_pub=m.ephemeral_pub,
                 signed_prekey_id=m.signed_prekey_id,
                 one_time_prekey_id=m.one_time_prekey_id,
                 message_type=m.message_type,
