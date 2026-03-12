@@ -17,19 +17,28 @@ def _clean_str(x):
     x = str(x).strip()
     return x if x else None
 
-async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
-    token = websocket.query_params.get("token")
-
-    # ---- AUTH (before accept) ----
+def _clean_int(x):
     try:
-        user_id = authenticate_ws(token)
+        return int(x)
     except Exception:
-        return
+        return None
 
-    await websocket.accept()
+def _is_valid_uuid(x):
+    try:
+        UUID(str(x))
+        return True
+    except Exception:
+        return False
+
+async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
     db: Session = SessionLocal()
 
     try:
+        user_id = await authenticate_ws(websocket)
+        if not user_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
         if not is_conversation_member(db, conversation_id, user_id):
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
@@ -39,19 +48,35 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
         while True:
             data = await websocket.receive_json()
 
-            ciphertext = data.get("ciphertext")
-            nonce = data.get("nonce")
+            ciphertext = _clean_str(data.get("ciphertext"))
+            nonce = _clean_str(data.get("nonce"))
             sender_device_id = data.get("sender_device_id")
             receiver_device_id = data.get("receiver_device_id")
-            message_type = data.get("message_type", "text")
 
             header = data.get("header") or {}
-            client_msg_id = data.get("client_msg_id")
+            client_msg_id = _clean_str(data.get("client_msg_id"))
 
-            if not ciphertext or not nonce or not sender_device_id or not receiver_device_id:
+            if not ciphertext or not nonce:
                 continue
 
-            # IMPORTANT: never store empty string
+            # Never log ciphertext or plaintext
+            # Enforce replay protection server-side by client_msg_id uniqueness per conversation
+            if client_msg_id:
+                existing = (
+                    db.query(Message)
+                    .filter(
+                        Message.conversation_id == conversation_id,
+                        Message.client_msg_id == client_msg_id,
+                    )
+                    .first()
+                )
+                if existing:
+                    continue
+
+            # Validate device IDs (must be UUID)
+            if not _is_valid_uuid(sender_device_id) or not _is_valid_uuid(receiver_device_id):
+                continue
+
             ephemeral_pub = _clean_str(header.get("ephemeral_pub"))
 
             msg = Message(
@@ -59,12 +84,12 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
                 sender_id=user_id,
                 ciphertext=ciphertext,
                 nonce=nonce,
-                sender_device_id=sender_device_id,
-                receiver_device_id=receiver_device_id,
+                sender_device_id=UUID(str(sender_device_id)),
+                receiver_device_id=UUID(str(receiver_device_id)),
                 ephemeral_pub=ephemeral_pub,
-                signed_prekey_id=header.get("signed_prekey_id"),
-                one_time_prekey_id=header.get("one_time_prekey_id"),
-                message_type=message_type,
+                signed_prekey_id=_clean_int(header.get("signed_prekey_id")),
+                one_time_prekey_id=_clean_int(header.get("one_time_prekey_id")),
+                message_type=_clean_str(data.get("message_type")) or "text",
                 client_msg_id=client_msg_id,
             )
 
@@ -72,29 +97,10 @@ async def chat_websocket(websocket: WebSocket, conversation_id: UUID):
             db.commit()
             db.refresh(msg)
 
-            await manager.broadcast(
-                conversation_id,
-                {
-                    "id": str(msg.id),
-                    "client_msg_id": msg.client_msg_id,
-                    "conversation_id": str(conversation_id),
-                    "sender_id": str(user_id),
-                    "ciphertext": msg.ciphertext,
-                    "nonce": msg.nonce,
-                    "sender_device_id": str(msg.sender_device_id),
-                    "receiver_device_id": str(msg.receiver_device_id),
-                    "header": {
-                        "ephemeral_pub": msg.ephemeral_pub,
-                        "signed_prekey_id": msg.signed_prekey_id,
-                        "one_time_prekey_id": msg.one_time_prekey_id,
-                    },
-                    "message_type": msg.message_type,
-                    "created_at": msg.created_at.isoformat(),
-                },
-            )
+            await manager.broadcast(conversation_id, msg.to_dict())
 
     except WebSocketDisconnect:
-        manager.disconnect(conversation_id, websocket)
-
+        pass
     finally:
+        manager.disconnect(conversation_id, websocket)
         db.close()

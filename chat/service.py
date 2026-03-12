@@ -1,31 +1,47 @@
 from sqlalchemy.orm import Session
 from uuid import UUID
 from sqlalchemy import or_
-
 from chat.model import Conversation, Message
 
+# def get_or_create_conversation(db: Session, user_a: UUID, user_b: UUID):
+#     # ensure consistent ordering
+#     u1, u2 = sorted([user_a, user_b])
+
+#     conversation = (
+#         db.query(Conversation)
+#         .filter(
+#             Conversation.user1_id == u1,
+#             Conversation.user2_id == u2,
+#         )
+#         .first()
+#     )
+
+#     if conversation:
+#         return conversation
+
+#     conversation = Conversation(user1_id=u1, user2_id=u2)
+#     db.add(conversation)
+#     db.commit()
+#     db.refresh(conversation)
+#     return conversation
 
 def get_or_create_conversation(db: Session, user_a: UUID, user_b: UUID):
-    # ensure consistent ordering
-    u1, u2 = sorted([user_a, user_b])
+    u1, u2 = sorted([str(user_a), str(user_b)])
+    u1, u2 = UUID(u1), UUID(u2)
 
-    conversation = (
+    conv = (
         db.query(Conversation)
-        .filter(
-            Conversation.user1_id == u1,
-            Conversation.user2_id == u2,
-        )
+        .filter(Conversation.user1_id == u1, Conversation.user2_id == u2)
         .first()
     )
+    if conv:
+        return conv
 
-    if conversation:
-        return conversation
-
-    conversation = Conversation(user1_id=u1, user2_id=u2)
-    db.add(conversation)
+    conv = Conversation(user1_id=u1, user2_id=u2)
+    db.add(conv)
     db.commit()
-    db.refresh(conversation)
-    return conversation
+    db.refresh(conv)
+    return conv
 
 
 def list_conversations(db: Session, user_id: UUID):

@@ -16,7 +16,6 @@ from friend.service import are_friends
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
-
 # -----------------------------
 # START / GET CONVERSATION
 # -----------------------------
@@ -26,7 +25,13 @@ def start_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if friend_id == current_user.id:
+
+    # if friend_id == current_user.id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="Cannot start conversation with yourself",
+    #     )
+    if str(friend_id) == str(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot start conversation with yourself",
@@ -80,6 +85,21 @@ def get_conversations(
 # -----------------------------
 # FETCH ENCRYPTED MESSAGES
 # -----------------------------
+# @router.get(
+#     "/messages/{conversation_id}",
+#     response_model=ApiResponse[list[EncryptedMessageOut]],
+# )
+# def fetch_messages(
+#     conversation_id: UUID,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     messages = get_messages(db, conversation_id)
+
+#     return success_response(
+#         data=messages,
+#         message="Encrypted chat history fetched",
+#     )
 @router.get(
     "/messages/{conversation_id}",
     response_model=ApiResponse[list[EncryptedMessageOut]],
@@ -91,7 +111,27 @@ def fetch_messages(
 ):
     messages = get_messages(db, conversation_id)
 
+    out = []
+    for m in messages:
+        out.append(
+            EncryptedMessageOut(
+                id=m.id,
+                conversation_id=m.conversation_id,
+                sender_id=m.sender_id,
+                ciphertext=m.ciphertext,
+                nonce=m.nonce,
+                sender_device_id=m.sender_device_id,
+                receiver_device_id=m.receiver_device_id,
+                ephemeral_pub=m.ephemeral_pub,  # ✅ critical
+                signed_prekey_id=m.signed_prekey_id,
+                one_time_prekey_id=m.one_time_prekey_id,
+                message_type=m.message_type,
+                client_msg_id=m.client_msg_id,
+                created_at=m.created_at,
+            )
+        )
+
     return success_response(
-        data=messages,
+        data=out,
         message="Encrypted chat history fetched",
     )

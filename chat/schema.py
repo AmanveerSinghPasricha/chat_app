@@ -3,7 +3,6 @@ from uuid import UUID
 from datetime import datetime
 from typing import Optional
 
-
 class ConversationResponse(BaseModel):
     id: UUID
     user1_id: UUID
@@ -14,12 +13,10 @@ class ConversationResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class E2EEHeader(BaseModel):
     ephemeral_pub: Optional[str] = None
     signed_prekey_id: Optional[int] = None
     one_time_prekey_id: Optional[int] = None
-
 
 class EncryptedMessageIn(BaseModel):
     ciphertext: str
@@ -29,7 +26,6 @@ class EncryptedMessageIn(BaseModel):
     header: Optional[E2EEHeader] = None
     message_type: str = "text"
     client_msg_id: Optional[str] = None
-
 
 class EncryptedMessageOut(BaseModel):
     id: UUID

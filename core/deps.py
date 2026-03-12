@@ -1,13 +1,13 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.security import decode_access_token
 from user.model import User
 from uuid import UUID
 
-security = HTTPBearer()
-
+# -----------------------------
+# DB DEPENDENCY
+# -----------------------------
 def get_db():
     db = SessionLocal()
     try:
@@ -15,10 +15,21 @@ def get_db():
     finally:
         db.close()
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-):
-    token = credentials.credentials 
+
+# -----------------------------
+# AUTH DEPENDENCY (COOKIE-BASED)
+# -----------------------------
+def get_current_user(request: Request):
+    """
+    Authenticate user using HTTP-only cookie.
+    """
+    token = request.cookies.get("access_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
 
     try:
         user_id: UUID = decode_access_token(token)
@@ -29,7 +40,6 @@ def get_current_user(
         )
 
     db: Session = SessionLocal()
-
     try:
         user = db.query(User).filter(User.id == user_id).first()
 
@@ -40,6 +50,6 @@ def get_current_user(
             )
 
         return user
-    
+
     finally:
         db.close()
