@@ -70,7 +70,6 @@ def send_friend_request(db: Session, sender_id, receiver_id):
             detail="Invalid receiver",
         )
 
-
 def respond_to_request(db: Session, request_id, user_id, action: str):
     friend_request = (
         db.query(FriendRequest)
@@ -102,14 +101,21 @@ def respond_to_request(db: Session, request_id, user_id, action: str):
             detail="Invalid action",
         )
 
+    # --- FIX START ---
+    if action == "rejected":
+        db.delete(friend_request)  # Hard delete clears the block in Discover
+        db.commit()
+        return None 
+
     friend_request.status = action
     db.commit()
     db.refresh(friend_request)
     return friend_request
+    # --- FIX END ---
 
 
 def get_friends(db: Session, user_id: UUID):
-    # ✅ return the OTHER USER, not yourself
+    # return the OTHER USER, not yourself
     friends = (
         db.query(User)
         .join(
@@ -127,7 +133,7 @@ def get_friends(db: Session, user_id: UUID):
         )
         .filter(
             FriendRequest.status == "accepted",
-            User.id != user_id,  # ✅ IMPORTANT
+            User.id != user_id,  # IMPORTANT
         )
         .all()
     )
@@ -144,3 +150,23 @@ def get_pending_requests_for_receiver(db: Session, receiver_id):
         )
         .all()
     )
+
+def delete_friendship(db: Session, user_a: UUID, user_b: UUID):
+    # Find the link regardless of who sent the original request
+    friendship = (
+        db.query(FriendRequest)
+        .filter(
+            FriendRequest.status == "accepted",
+            or_(
+                and_(FriendRequest.sender_id == user_a, FriendRequest.receiver_id == user_b),
+                and_(FriendRequest.sender_id == user_b, FriendRequest.receiver_id == user_a),
+            ),
+        )
+        .first()
+    )
+
+    if friendship:
+        db.delete(friendship)
+        db.commit()
+        return True
+    return False

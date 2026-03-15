@@ -1,9 +1,9 @@
 from typing import Generic, TypeVar, Optional
-from pydantic.generics import GenericModel
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
-class ApiResponse(GenericModel, Generic[T]):
+class ApiResponse(BaseModel, Generic[T]):
     status: bool
     status_code: int
     message: str

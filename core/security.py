@@ -14,6 +14,10 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
+    # Ensure user_id is a string in the payload
+    if "sub" in to_encode:
+        to_encode["sub"] = str(to_encode["sub"])
+        
     expire = datetime.utcnow() + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
@@ -23,16 +27,13 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 def decode_access_token(token: str) -> str:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token payload",
             )
-
-        return user_id
-
+        return str(user_id)
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -15,41 +15,65 @@ def get_db():
     finally:
         db.close()
 
-
 # -----------------------------
-# AUTH DEPENDENCY (COOKIE-BASED)
+# AUTH DEPENDENCY
 # -----------------------------
-def get_current_user(request: Request):
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
-    Authenticate user using HTTP-only cookie.
+    Authenticate user using either:
+    1) Authorization Bearer token
+    2) HTTP-only cookie
     """
-    token = request.cookies.get("access_token")
 
+    token = None
+
+    # -----------------------------
+    # Check Authorization header
+    # -----------------------------
+    auth_header = request.headers.get("Authorization")
+
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+
+    # -----------------------------
+    # Fallback to cookie
+    # -----------------------------
+    if not token:
+        token = request.cookies.get("access_token")
+
+    # -----------------------------
+    # No token
+    # -----------------------------
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
 
+    # -----------------------------
+    # Decode JWT
+    # -----------------------------
     try:
         user_id: UUID = decode_access_token(token)
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
 
-    db: Session = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
+    # -----------------------------
+    # Fetch user
+    # -----------------------------
+    user = db.query(User).filter(User.id == user_id).first()
 
-        if not user or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Account inactive or deleted",
-            )
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account inactive or deleted",
+        )
 
-        return user
-
-    finally:
-        db.close()
+    return user

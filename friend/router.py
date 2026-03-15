@@ -12,12 +12,14 @@ from friend.service import (
     send_friend_request,
     respond_to_request,
     get_pending_requests_for_receiver,
+    delete_friendship
 )
 from core.response import ApiResponse
 from friend.schema import FriendResponse
 from user.model import User
 from friend.schema import FriendResponse
 from friend.service import get_friends
+from uuid import UUID
 
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
@@ -97,3 +99,20 @@ def list_friends(
         data=friends,
         message="Friends list fetched",
     )
+
+@router.delete("/{friend_id}")
+def terminate_connection(
+    friend_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # This logic removes the accepted relationship from the DB
+    success = delete_friendship(db, current_user.id, friend_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=404, 
+            detail="Secure connection not found or already terminated"
+        )
+
+    return success_response(message="Secure channel terminated")

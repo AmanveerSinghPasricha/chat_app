@@ -43,38 +43,13 @@ def upload_prekeys_api(
     upload_prekeys(db, device_id, payload.signed_prekey, payload.one_time_prekeys)
     return success_response(message="Prekeys uploaded")
 
-
-# @router.get("/prekeys/bundle/{user_id}", response_model=ApiResponse[PreKeyBundleResponse])
-# def get_bundle_api(
-#     user_id: UUID,
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user),
-# ):
-#     device, signed, one_time = get_prekey_bundle(db, user_id)
-
-#     data = {
-#         "device_id": device.id,
-#         "identity_key_pub": device.identity_key_pub,
-#         "signed_prekey": {
-#             "key_id": signed.key_id,
-#             "public_key": signed.public_key,
-#             "signature": signed.signature,
-#         },
-#         "one_time_prekey": None if not one_time else {
-#             "key_id": one_time.key_id,
-#             "public_key": one_time.public_key,
-#         },
-#     }
-
-#     return success_response(data=data, message="Prekey bundle fetched")
-
 @router.get("/prekeys/bundle/{user_id}", response_model=ApiResponse[PreKeyBundleResponse])
 def get_bundle_api(
     user_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # ✅ MUST use friend-checked function
+    # MUST use friend-checked function
     data = fetch_prekeys_for_user(
         db=db,
         current_user_id=current_user.id,
